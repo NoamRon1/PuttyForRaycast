@@ -11,6 +11,8 @@ type Preferences = {
 type PuttySession = {
   id: string;
   name: string;
+  host?: string;
+  iconUrl?: string;
 };
 
 type Protocol = "raw" | "telnet" | "rlogin" | "ssh" | "serial";
@@ -312,6 +314,32 @@ export default function Command() {
         setSessions(list);
         setIsLoading(false);
       }
+      // After listing sessions, try to read HostName for nicer icons (best effort)
+      (async () => {
+        const updated = await Promise.all(
+          list.map(async (s) => {
+            try {
+              const key = `HKCU\\Software\\SimonTatham\\PuTTY\\Sessions\\${encodeSessionKey(s.name)}`;
+              return await new Promise<PuttySession>((resolve) => {
+                exec(`reg query "${key}" /v HostName`, (err, stdout) => {
+                  if (err) return resolve(s);
+                  const m = stdout.match(/HostName\s+REG_SZ\s+(.+)/);
+                  const host = m ? m[1].trim() : undefined;
+                  let iconUrl: string | undefined;
+                  if (host && /[a-zA-Z]/.test(host) && host.includes(".") && !/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+                    // Use DuckDuckGo icon service for domains
+                    iconUrl = `https://icons.duckduckgo.com/ip3/${host}.ico`;
+                  }
+                  resolve({ ...s, host, iconUrl });
+                });
+              });
+            } catch {
+              return s;
+            }
+          })
+        );
+        if (mounted) setSessions(updated);
+      })();
     })();
     return () => {
       mounted = false;
@@ -351,7 +379,7 @@ export default function Command() {
       {sessions.map((s) => (
         <List.Item
           key={s.id}
-          icon={Icon.Terminal}
+          icon={s.iconUrl ? { source: s.iconUrl, fallback: Icon.Terminal } : Icon.Terminal}
           title={s.name}
           accessories={[{ text: s.name }]}
           actions={
