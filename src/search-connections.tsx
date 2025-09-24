@@ -206,6 +206,90 @@ function EditConnectionForm(props: { sessionName: string; puttyPath: string; onU
   );
 }
 
+function TempEditForm(props: { sessionName: string; puttyPath: string }) {
+  const { sessionName, puttyPath } = props;
+  const [initial, setInitial] = useState<{ HostName: string; PortNumber: number; Protocol: Protocol; CloseOnExit: CloseOnExit } | null>(null);
+  useEffect(() => {
+    (async () => {
+      const vals = await readSessionValues(sessionName);
+      setInitial(vals);
+    })();
+  }, [sessionName]);
+
+  function protocolToFlag(p: Protocol): string {
+    switch (p) {
+      case "ssh":
+        return "-ssh";
+      case "telnet":
+        return "-telnet";
+      case "rlogin":
+        return "-rlogin";
+      case "serial":
+        return "-serial";
+      case "raw":
+      default:
+        return "-raw";
+    }
+  }
+
+  async function handleSubmit(values: { host: string; port: string; protocol: Protocol; closeOnExit: CloseOnExit }) {
+    const portNum = Number(values.port);
+    if (!values.host) {
+      await showToast({ style: Toast.Style.Failure, title: "Host is required" });
+      return;
+    }
+    if (!Number.isInteger(portNum) || portNum <= 0 || portNum > 65535) {
+      await showToast({ style: Toast.Style.Failure, title: "Invalid port" });
+      return;
+    }
+
+    const exists = await fileExists(puttyPath);
+    if (!exists) {
+      await showToast({ style: Toast.Style.Failure, title: "PuTTY path not found", message: puttyPath });
+      return;
+    }
+
+    const args = [protocolToFlag(values.protocol), "-P", String(portNum), values.host];
+    execFile(puttyPath, args, (error) => {
+      if (error) {
+        showToast({ style: Toast.Style.Failure, title: "Failed to launch PuTTY", message: error.message });
+      }
+    });
+
+    try {
+      await popToRoot({ clearSearchBar: true });
+    } catch {}
+    try {
+      await closeMainWindow({ clearRootSearch: true } as any);
+    } catch {}
+  }
+
+  return (
+    <Form
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm title="Open Without Saving" icon={Icon.Goal} onSubmit={handleSubmit as any} />
+        </ActionPanel>
+      }
+    >
+      <Form.TextField id="host" title="Host name (or IP)" defaultValue={initial?.HostName} />
+      <Form.TextField id="port" title="Port" defaultValue={initial ? String(initial.PortNumber) : ""} />
+      <Form.Dropdown id="protocol" title="Connection type" defaultValue={initial?.Protocol || "raw"}>
+        <Form.Dropdown.Item title="Raw" value="raw" />
+        <Form.Dropdown.Item title="Telnet" value="telnet" />
+        <Form.Dropdown.Item title="Rlogin" value="rlogin" />
+        <Form.Dropdown.Item title="SSH" value="ssh" />
+        <Form.Dropdown.Item title="Serial" value="serial" />
+      </Form.Dropdown>
+      <Form.Dropdown id="closeOnExit" title="Close window on exit" defaultValue={initial?.CloseOnExit || "onexit"}>
+        <Form.Dropdown.Item title="Always" value="always" />
+        <Form.Dropdown.Item title="Never" value="never" />
+        <Form.Dropdown.Item title="Only on clean exit" value="onexit" />
+      </Form.Dropdown>
+    </Form>
+  );
+}
+
 export default function Command() {
   const { puttyPath } = getPreferenceValues<Preferences>();
   const [sessions, setSessions] = useState<PuttySession[]>([]);
@@ -276,6 +360,12 @@ export default function Command() {
                 title="Open in PuTTY"
                 icon={Icon.Play}
                 onAction={() => launchSession(s.name)}
+              />
+              <Action.Push
+                title="Temporary Edit and Open"
+                icon={Icon.Goal}
+                target={<TempEditForm sessionName={s.name} puttyPath={puttyPath} />}
+                shortcut={Keyboard.Shortcut.Common.OpenWith}
               />
               <Action.Push
                 title="Edit Connection"
