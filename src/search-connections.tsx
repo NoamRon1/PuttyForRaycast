@@ -1,4 +1,4 @@
-import { ActionPanel, Action, Icon, List, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { ActionPanel, Action, Icon, List, getPreferenceValues, showToast, Toast, Keyboard } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { exec, execFile } from "node:child_process";
 import { access } from "node:fs/promises";
@@ -20,6 +20,10 @@ function decodeSessionKey(encoded: string): string {
   } catch {
     return encoded;
   }
+}
+
+function encodeSessionKey(raw: string): string {
+  return encodeURIComponent(raw);
 }
 
 async function listPuttySessions(): Promise<PuttySession[]> {
@@ -103,6 +107,21 @@ export default function Command() {
     });
   };
 
+  const deleteSession = async (sessionName: string) => {
+    return new Promise<void>((resolve) => {
+      const registryKey = `HKCU\\Software\\SimonTatham\\PuTTY\\Sessions\\${encodeSessionKey(sessionName)}`;
+      exec(`reg delete "${registryKey}" /f`, async (error) => {
+        if (error) {
+          await showToast({ style: Toast.Style.Failure, title: "Failed to delete session", message: sessionName });
+        } else {
+          await showToast({ style: Toast.Style.Success, title: "Deleted", message: sessionName });
+          setSessions((prev) => prev.filter((s) => s.name !== sessionName));
+        }
+        resolve();
+      });
+    });
+  };
+
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search PuTTY sessions…">
       {sessions.map((s) => (
@@ -117,6 +136,13 @@ export default function Command() {
                 title="Open in PuTTY"
                 icon={Icon.Play}
                 onAction={() => launchSession(s.name)}
+              />
+              <Action
+                title="Delete Connection"
+                icon={Icon.Trash}
+                style={Action.Style.Destructive}
+                onAction={() => deleteSession(s.name)}
+                shortcut={Keyboard.Shortcut.Common.Remove}
               />
               <Action.CopyToClipboard title="Copy Session Name" content={s.name} />
             </ActionPanel>

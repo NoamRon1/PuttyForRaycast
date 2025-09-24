@@ -12,6 +12,13 @@
       "description": "Search through saved connections",
       "mode": "view",
       "subtitle": "Search through saved connections"
+    },
+    {
+      "name": "add-connection",
+      "title": "Add Connection",
+      "description": "Create and optionally save a new PuTTY session",
+      "mode": "view",
+      "subtitle": "Create a PuTTY session"
     }
   ],
   "preferences": [
