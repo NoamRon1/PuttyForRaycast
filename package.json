@@ -8,17 +8,17 @@
   "commands": [
     {
       "name": "search-connections",
-      "title": "Search Connections",
-      "description": "Search through saved connections",
+      "title": "Search PuTTY Connections",
+      "description": "Search through saved PuTTY sessions",
       "mode": "view",
-      "subtitle": "Search through saved connections"
+      "subtitle": "Search saved PuTTY sessions"
     },
     {
       "name": "add-connection",
-      "title": "Add Connection",
-      "description": "Create and optionally save a new PuTTY session",
+      "title": "Add PuTTY Connection",
+      "description": "Create and save a new PuTTY session",
       "mode": "view",
-      "subtitle": "Create a PuTTY session"
+      "subtitle": "Create a new PuTTY session"
     }
   ],
   "preferences": [
